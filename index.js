@@ -168,14 +168,16 @@ function connectMedia(url, meetingUuid, streamId) {
 
     if (msg.msg_type === 'DATA_HAND_SHAKE_RESP') {
       if (msg.status !== 'STATUS_OK') {
-        console.error('[RTMS] Media handshake failed:', msg.status);
+        console.error('[RTMS] Media handshake failed:', msg.status, JSON.stringify(msg));
         mediaWs.close();
         return;
       }
-      console.log('[RTMS] Media handshake OK — video stream active');
+      console.log('[RTMS] Media handshake OK — video stream active. Full resp:', JSON.stringify(msg));
     }
 
     if (msg.msg_type === 'MEDIA_DATA_VIDEO' && msg.data) {
+      const byteLen = Math.round((msg.data.length * 3) / 4);
+      console.log(`[RTMS] VIDEO frame received — base64 len=${msg.data.length} (~${byteLen} bytes), clients=${browserClients.size}`);
       broadcastFrame(msg.data);
     }
 
@@ -186,6 +188,10 @@ function connectMedia(url, meetingUuid, streamId) {
     if (msg.msg_type === 'SESSION_STATE_UPDATE') {
       console.log('[RTMS] Session state:', msg.state);
       if (msg.state === 'STOPPED') mediaWs.close();
+    }
+
+    if (!['DATA_HAND_SHAKE_RESP', 'MEDIA_DATA_VIDEO', 'KEEP_ALIVE_REQ', 'SESSION_STATE_UPDATE'].includes(msg.msg_type)) {
+      console.log('[RTMS] Unknown media msg_type:', msg.msg_type, JSON.stringify(msg).slice(0, 200));
     }
   });
 
